@@ -3,6 +3,7 @@ import cors from "cors";
 import compileRoute from "./routes/compile.js";
 import deployRoute from "./routes/deploy.js";
 import invokeRoute from "./routes/invoke.js";
+import { successResponse } from "./utils/response.js";
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -16,12 +17,13 @@ app.use("/api/deploy", deployRoute);
 app.use("/api/invoke", invokeRoute);
 
 app.get("/api/health", (req, res) => {
-  res.json({
-    status: "ok",
+  res.json(successResponse({
     message: "Soroban Playground API is running",
-    timestamp: new Date().toISOString(),
-    service: "soroban-playground-backend"
-  });
+    data: {
+      timestamp: new Date().toISOString(),
+      service: "soroban-playground-backend"
+    }
+  }));
 });
 
 app.listen(PORT, () => {

@@ -2,6 +2,7 @@ import express from "express";
 import { exec } from "child_process";
 import fs from "fs/promises";
 import path from "path";
+import { sendSuccess, sendError } from "../utils/response.js";
 
 const router = express.Router();
 
@@ -57,7 +58,7 @@ function parseCargoError(stdout, stderr, err) {
 router.post("/", async (req, res) => {
   const { code } = req.body;
   if (!code) {
-    return res.status(400).json({ error: "No code provided" });
+    return sendError(res, { statusCode: 400, message: "No code provided" });
   }
 
   // Define a temporary working directory for this compilation
@@ -114,11 +115,11 @@ lto = true
         await cleanUp();
         const errorInfo = parseCargoError(stdout, stderr, err);
         console.error('Compilation error details:', errorInfo.detailedMessage); // Log detailed errors for debugging
-        return res.status(errorInfo.statusCode).json({ 
-          error: errorInfo.userMessage, 
-          status: "error",
+        return sendError(res, {
+          statusCode: errorInfo.statusCode,
+          message: errorInfo.userMessage,
           details: errorInfo.detailedMessage,
-          logs: stderr ? stderr.split('\n').filter(l => l.trim()) : []
+          errors: stderr ? stderr.split('\n').filter(l => l.trim()) : undefined
         });
       }
 
@@ -128,15 +129,15 @@ lto = true
         const fileStats = await fs.stat(wasmPath);
         // It's built successfully
         await cleanUp();
-        return res.json({ 
-          success: true, 
-          status: "success",
+        return sendSuccess(res, {
           message: "Contract compiled successfully",
-          logs: (stdout + (stderr ? "\n" + stderr : "")).split('\n').filter(l => l.trim()),
-          artifact: {
-            name: "soroban_contract.wasm",
-            sizeBytes: fileStats.size,
-            createdAt: fileStats.birthtime
+          data: {
+            logs: (stdout + (stderr ? "\n" + stderr : "")).split('\n').filter(l => l.trim()),
+            artifact: {
+              name: "soroban_contract.wasm",
+              sizeBytes: fileStats.size,
+              createdAt: fileStats.birthtime
+            }
           }
         });
       } catch (e) {
@@ -148,18 +149,22 @@ lto = true
           detailedMessage: (stdout || '') + '\n' + (stderr || '')
         };
         console.error('WASM generation error details:', errorInfo.detailedMessage);
-        return res.status(errorInfo.statusCode).json({ 
-          error: errorInfo.userMessage, 
-          status: "error",
+        return sendError(res, {
+          statusCode: errorInfo.statusCode,
+          message: errorInfo.userMessage,
           details: errorInfo.detailedMessage,
-          logs: stderr ? stderr.split('\n').filter(l => l.trim()) : []
+          errors: stderr ? stderr.split('\n').filter(l => l.trim()) : undefined
         });
       }
     });
 
   } catch (err) {
-    try { await fs.rm(tempDir, { recursive: true, force: true }); } catch (cleanupErr) {}
-    res.status(500).json({ error: "Internal server error", details: err.message });
+    try {
+      await fs.rm(tempDir, { recursive: true, force: true });
+    } catch (cleanupErr) {
+      console.error('Temp directory cleanup failed:', cleanupErr);
+    }
+    return sendError(res, { statusCode: 500, message: "Internal server error", details: err.message });
   }
 });
 

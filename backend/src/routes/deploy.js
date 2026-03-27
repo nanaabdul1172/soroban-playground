@@ -1,7 +1,5 @@
 import express from "express";
-import { exec } from "child_process";
-import fs from "fs/promises";
-import path from "path";
+import { sendSuccess, sendError } from "../utils/response.js";
 
 const router = express.Router();
 
@@ -40,11 +38,7 @@ router.post("/", async (req, res) => {
   // Validate request payload
   const validationError = validateDeployRequest(req.body);
   if (validationError) {
-    return res.status(400).json({
-      success: false,
-      status: "error",
-      ...validationError
-    });
+    return sendError(res, { statusCode: 400, message: validationError.error, details: validationError.details });
   }
 
   const { wasmPath, contractName, network = "testnet" } = req.body;
@@ -60,19 +54,17 @@ router.post("/", async (req, res) => {
   // or use a predefined funded testnet identity.
 
   setTimeout(() => {
-    // Generate a random contract ID to simulate successful deploy
-    // Stellar contract IDs start with 'C' and are 56 characters long
     const contractId = "C" + Math.random().toString(36).substring(2, 54).toUpperCase();
 
-    res.json({
-      success: true,
-      status: "success",
-      contractId,
-      contractName,
-      network,
-      wasmPath,
-      deployedAt: new Date().toISOString(),
-      message: `Contract "${contractName}" deployed successfully to ${network}`
+    return sendSuccess(res, {
+      message: `Contract "${contractName}" deployed successfully to ${network}`,
+      data: {
+        contractId,
+        contractName,
+        network,
+        wasmPath,
+        deployedAt: new Date().toISOString()
+      }
     });
   }, 1500);
 });

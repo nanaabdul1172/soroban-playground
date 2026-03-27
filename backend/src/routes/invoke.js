@@ -1,5 +1,5 @@
 import express from "express";
-import { exec } from "child_process";
+import { sendSuccess, sendError } from "../utils/response.js";
 
 const router = express.Router();
 
@@ -7,20 +7,20 @@ router.post("/", async (req, res) => {
   const { contractId, functionName, args } = req.body;
 
   if (!contractId || !functionName) {
-    return res.status(400).json({ error: "contractId and functionName are required" });
+    return sendError(res, { statusCode: 400, message: "contractId and functionName are required" });
   }
 
   // Real implementation:
   // `soroban contract invoke --id {contractId} --source alice --network testnet -- {functionName} --name {args.name}`
   
-  console.log(\`Invoking \${contractId} -> \${functionName} with args:\`, args);
+  console.log(`Invoking ${contractId} -> ${functionName} with args:`, args);
 
   setTimeout(() => {
-    // Simulated invocation response for the MVP
-    res.json({
-      success: true,
-      output: args && args.name ? args.name : "Success",
-      message: "Function invoked successfully"
+    return sendSuccess(res, {
+      message: "Function invoked successfully",
+      data: {
+        output: args && args.name ? args.name : "Success"
+      }
     });
   }, 1000);
 });
